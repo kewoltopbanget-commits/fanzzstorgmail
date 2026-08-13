@@ -11,7 +11,15 @@ async function goAuth(){try{await api("/api/"+mode,{method:"POST",body:JSON.stri
 async function boot(){let r=await fetch("/api/me");if(!r.ok){$("guest").classList.remove("hidden");$("member").classList.add("hidden");$("admin").classList.add("hidden");return}let u=await r.json();$("guest").classList.add("hidden");$("who").textContent=u.role==="admin"?"Admin":"Member";if(u.role==="admin"){ $("admin").classList.remove("hidden");loadAdmin()}else{$("member").classList.remove("hidden");$("me").textContent=u.email;$("bal").textContent="Saldo Rp"+u.balance.toLocaleString("id-ID");$("method").value=u.payout_method||"";$("target").value=u.payout_target||"";loadMember()}}
 async function loadMember(){let a=await api("/api/submissions"),w=await api("/api/withdrawals");$("hist").innerHTML=a.map(x=>`<div class=item><b>${x.email}</b><span class="tag ${x.status}">${x.status}</span><div class=muted>${x.created_at}</div></div>`).join("")||"Kosong";$("wh").innerHTML=w.map(x=>`<div class=item>Rp${x.amount.toLocaleString("id-ID")} • ${x.status}</div>`).join("")}
 async function stor(){try{let x=await api("/api/submissions",{method:"POST",body:JSON.stringify({emails:$("emails").value,note:$("note").value})});alert(x.count+" email dikirim");loadMember()}catch(e){alert(e.message)}}
-async function withdraw(){try{await api("/api/profile",{method:"POST",body:JSON.stringify({method:$("method").value,target:$("target").value})});await api("/api/withdrawals",{method:"POST",body:JSON.stringify({amount:+$("amount").value,method:$("method").value,target:$("target").value})});alert("Diajukan");boot()}catch(e){alert(e.message)}}
+async function pay(id){
+  try{
+    await api("/api/withdrawals/"+id+"/pay",{method:"POST"});
+    alert("Penarikan berhasil di-ACC/dibayar");
+    loadAdmin();
+  }catch(e){
+    alert("Gagal ACC penarikan: "+e.message);
+  }
+}
 async function loadAdmin(){let s=await api("/api/settings"),a=await api("/api/submissions"),w=await api("/api/withdrawals");$("price").value=s.price;$("min").value=s.min;$("open").value=s.open?"1":"0";$("arules").value=s.rules;$("incoming").innerHTML=a.filter(x=>x.status==="pending").map(x=>`<div class=item><b>${x.email}</b><div>${x.member}</div><button class=green onclick="act(${x.id},'accept')">Terima</button><button class=red onclick="act(${x.id},'reject')">Tolak</button></div>`).join("")||"Tidak ada";$("aw").innerHTML=w.map(x=>`<div class=item>${x.member} • Rp${x.amount.toLocaleString("id-ID")} • ${x.status} ${x.status==="pending"?`<button class=green onclick="pay(${x.id})">Bayar</button>`:""}</div>`).join("")}
 async function act(id,a){await api("/api/submissions/"+id+"/"+a,{method:"POST"});loadAdmin()}async function pay(id){await api("/api/withdrawals/"+id+"/pay",{method:"POST"});loadAdmin()}async function settings(){await api("/api/settings",{method:"POST",body:JSON.stringify({price:+$("price").value,min:+$("min").value,open:$("open").value==="1",rules:$("arules").value})});alert("Disimpan")}async function pass(){await api("/api/admin/password",{method:"POST",body:JSON.stringify({password:$("np").value})});alert("Password diganti")}
 async function logout(){await api("/api/logout",{method:"POST"});boot()}api("/api/rules").then(x=>$("rules").textContent=x.rules);boot();
