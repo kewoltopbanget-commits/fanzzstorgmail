@@ -35,5 +35,7 @@ app.get("/api/withdrawals",auth,(q,r)=>r.json(q.session.user.role==="admin"?db.p
 app.post("/api/withdrawals/:id/pay",adm,(q,r)=>{db.prepare("UPDATE withdrawals SET status='paid' WHERE id=? AND status='pending'").run(q.params.id);r.json({ok:true})});
 app.get("/api/settings",adm,(q,r)=>r.json({price:+get("price",4700),min:+get("min",50000),open:get("open","1")==="1",rules:get("rules","")}));
 app.post("/api/settings",adm,(q,r)=>{set("price",q.body.price);set("min",q.body.min);set("open",q.body.open?1:0);set("rules",q.body.rules||"");r.json({ok:true})});
-app.post("/api/admin/password",adm,(q,r)=>{if(String(q.body.password||"").length<8)return r.status(400).json({error:"Minimal 8 karakter"});db.prepare("UPDATE users SET password=? WHERE id=?").run(q.body.password,q.session.user.id);r.json({ok:true})});
+app.post("/api/admin/password",adm,(q,r)=>{if(String(q.body.password||"").length<8)return r.status(400).json({error:"Minimal 8 karakter"});db.prepare("UPDATE users SET password=? WHERE id=?").run(q.body.password,q.session.user.id);r.json({ok:true})});app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 app.listen(process.env.PORT||3000,()=>console.log("STOR Portal aktif"));
