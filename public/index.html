@@ -1,26 +1,918 @@
-<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>STOR Portal</title><style>
-body{margin:0;font-family:Arial;background:#eef7ff;color:#152235}.wrap{max-width:720px;margin:auto;padding:15px}.card,.hero{background:#fff;border-radius:20px;padding:20px;margin:14px 0}.hero{background:linear-gradient(135deg,#1255b9,#347ff0);color:#fff}button{padding:11px 15px;border:0;border-radius:12px;font-weight:bold;margin:4px}.blue{background:#2877ea;color:#fff}.green{background:#08b978;color:#fff}.red{background:#e64c5c;color:#fff}input,textarea,select{width:100%;padding:12px;box-sizing:border-box;margin:5px 0 10px;border:1px solid #d5e3ec;border-radius:12px}textarea{min-height:100px}.hidden{display:none}.item{padding:12px 0;border-bottom:1px solid #e5edf2}.tag{float:right;padding:5px 8px;border-radius:15px;font-size:11px}.pending{background:#fff0c8}.accepted,.paid{background:#dcf7e9}.rejected{background:#ffe1e5}.muted{font-size:13px;color:#718092}</style></head><body><div class="wrap"><header>✉️ <b>STOR GMAIL</b><span id="who" style="float:right">Guest</span></header>
-<div id="guest"><section class="hero"><h1>STOR Portal</h1><button class="blue" onclick="auth('login')">Login</button><button onclick="auth('register')">Daftar</button></section><section class="card"><h3>Rules</h3><p id="rules">...</p></section></div>
-<div id="member" class="hidden"><section class="hero"><h2>Member</h2><p id="me"></p><b id="bal"></b><br><button onclick="logout()">Keluar</button></section><section class="card"><h3>📨 STOR Email</h3><p class="muted">Hanya alamat Gmail. Jangan masukkan password, OTP, recovery code, cookie, atau kredensial login.</p><textarea id="emails" placeholder="nama@gmail.com"></textarea><input id="note" placeholder="Catatan"><button class="blue" onclick="stor()">Kirim STOR</button></section><section class="card"><h3>Riwayat</h3><div id="hist"></div></section><section class="card"><h3>Penarikan</h3><input id="method" placeholder="DANA / Bank / GoPay"><input id="target" placeholder="Nomor tujuan"><input id="amount" type="number" placeholder="Nominal"><button class="blue" onclick="withdraw()">Ajukan</button><div id="wh"></div></section></div>
-<div id="admin" class="hidden"><section class="hero"><h2>🛡️ Admin Panel</h2><button onclick="logout()">Keluar</button></section><section class="card"><h3>Pengaturan</h3><input id="price" type="number" placeholder="Harga STOR"><input id="min" type="number" placeholder="Minimal penarikan"><select id="open"><option value="1">STOR Dibuka</option><option value="0">STOR Ditutup</option></select><textarea id="arules"></textarea><button class="blue" onclick="settings()">Simpan</button><input id="np" type="password" placeholder="Password admin baru"><button onclick="pass()">Ganti Password</button></section><section class="card"><h3>STOR Masuk</h3><div id="incoming"></div></section><section class="card"><h3>Penarikan</h3><div id="aw"></div></section></div>
-<div id="modal" class="card hidden" style="position:fixed;left:10%;right:10%;top:20%;z-index:5;box-shadow:0 10px 40px #0005"><h3 id="mt"></h3><input id="em" placeholder="Email"><input id="pw" type="password" placeholder="Password"><p id="err"></p><button class="blue" onclick="goAuth()">Lanjut</button><button onclick="closeM()">Batal</button></div></div>
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STOR Portal</title>
+
+<style>
+:root{
+  --bg:#f5f7fb;
+  --card:#fff;
+  --text:#172033;
+  --muted:#718096;
+  --primary:#2563eb;
+  --primary2:#1d4ed8;
+  --green:#10b981;
+  --red:#ef4444;
+  --yellow:#f59e0b;
+  --border:#e7ebf2;
+  --shadow:0 8px 30px rgba(15,23,42,.07);
+  --radius:18px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer;border:0}
+.hidden{display:none!important}
+
+.layout{display:flex;min-height:100vh}
+
+.sidebar{
+  width:245px;
+  background:#fff;
+  border-right:1px solid var(--border);
+  padding:22px 16px;
+  position:fixed;
+  left:0;top:0;bottom:0;
+  z-index:20;
+}
+.logo{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:20px;
+  font-weight:800;
+  margin-bottom:30px;
+}
+.logo-icon{
+  width:40px;height:40px;
+  display:grid;place-items:center;
+  border-radius:12px;
+  background:linear-gradient(135deg,#2563eb,#60a5fa);
+  color:#fff;
+}
+.nav button{
+  width:100%;
+  padding:13px 14px;
+  margin:4px 0;
+  text-align:left;
+  border-radius:12px;
+  background:transparent;
+  color:#64748b;
+  font-weight:600;
+}
+.nav button:hover,.nav button.active{
+  background:#eff6ff;
+  color:var(--primary);
+}
+.logout{
+  position:absolute;
+  bottom:20px;
+  left:16px;
+  right:16px;
+  color:#ef4444!important;
+}
+
+.main{
+  margin-left:245px;
+  width:calc(100% - 245px);
+}
+.topbar{
+  height:72px;
+  background:#fff;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:0 32px;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+.top-title{font-size:18px;font-weight:800}
+.user-pill{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  color:#475569;
+  font-size:14px;
+}
+.avatar{
+  width:34px;height:34px;
+  display:grid;place-items:center;
+  border-radius:50%;
+  background:#dbeafe;
+  color:#1d4ed8;
+  font-weight:800;
+}
+
+.content{
+  max-width:1250px;
+  margin:auto;
+  padding:28px;
+}
+
+.hero{
+  background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+  color:#fff;
+  border-radius:24px;
+  padding:28px;
+  box-shadow:var(--shadow);
+  margin-bottom:22px;
+}
+.hero small{opacity:.8}
+.hero h1{margin:7px 0;font-size:30px}
+.hero p{margin:0;opacity:.85}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  box-shadow:var(--shadow);
+}
+.stat-label{color:var(--muted);font-size:13px}
+.stat-value{font-size:25px;font-weight:800;margin-top:8px}
+.stat-icon{
+  width:40px;height:40px;
+  display:grid;place-items:center;
+  border-radius:12px;
+  background:#eff6ff;
+  color:var(--primary);
+  margin-bottom:14px;
+}
+
+.section{
+  margin-top:22px;
+}
+.section-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:12px;
+}
+.section-title h2{font-size:18px;margin:0}
+
+.two{
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:18px;
+}
+
+label{
+  display:block;
+  font-size:13px;
+  font-weight:700;
+  margin:10px 0 6px;
+}
+input,textarea,select{
+  width:100%;
+  border:1px solid var(--border);
+  background:#fff;
+  padding:12px 13px;
+  border-radius:12px;
+  outline:none;
+}
+input:focus,textarea:focus,select:focus{
+  border-color:#93c5fd;
+  box-shadow:0 0 0 3px #dbeafe;
+}
+textarea{min-height:145px;resize:vertical}
+
+.btn{
+  padding:11px 16px;
+  border-radius:11px;
+  font-weight:750;
+}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary2)}
+.btn-green{background:#dcfce7;color:#047857}
+.btn-red{background:#fee2e2;color:#b91c1c}
+.btn-light{background:#f1f5f9;color:#334155}
+
+.balance{
+  font-size:34px;
+  font-weight:850;
+  margin:5px 0 18px;
+}
+
+.table-wrap{overflow:auto}
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:650px;
+}
+th,td{
+  text-align:left;
+  padding:14px 12px;
+  border-bottom:1px solid var(--border);
+  font-size:14px;
+}
+th{
+  color:#64748b;
+  font-size:12px;
+  text-transform:uppercase;
+}
+.badge{
+  display:inline-flex;
+  padding:5px 9px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+}
+.badge-pending{background:#fef3c7;color:#92400e}
+.badge-accepted{background:#dcfce7;color:#166534}
+.badge-rejected{background:#fee2e2;color:#991b1b}
+.badge-paid{background:#dbeafe;color:#1e40af}
+
+.empty{
+  text-align:center;
+  padding:30px;
+  color:var(--muted);
+}
+
+.mobile-nav{display:none}
+
+.modal-bg{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.45);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  z-index:100;
+}
+.modal{
+  width:100%;
+  max-width:430px;
+  background:#fff;
+  border-radius:20px;
+  padding:24px;
+  box-shadow:0 25px 70px rgba(0,0,0,.2);
+}
+.modal h2{margin-top:0}
+
+.toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  background:#172033;
+  color:#fff;
+  padding:13px 17px;
+  border-radius:12px;
+  z-index:200;
+  box-shadow:var(--shadow);
+}
+
+.guest{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.guest-card{
+  max-width:500px;
+  width:100%;
+  background:#fff;
+  border-radius:25px;
+  padding:35px;
+  box-shadow:var(--shadow);
+  text-align:center;
+}
+.guest-logo{
+  width:65px;height:65px;
+  margin:auto;
+  display:grid;place-items:center;
+  border-radius:20px;
+  background:linear-gradient(135deg,#2563eb,#60a5fa);
+  color:#fff;
+  font-size:28px;
+}
+.guest h1{margin-bottom:8px}
+.guest p{color:var(--muted);line-height:1.6}
+
+@media(max-width:900px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .two{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  .sidebar{display:none}
+  .main{
+    margin-left:0;
+    width:100%;
+    padding-bottom:75px;
+  }
+  .topbar{padding:0 17px}
+  .content{padding:18px}
+  .grid{grid-template-columns:1fr 1fr}
+  .hero{padding:22px}
+  .hero h1{font-size:24px}
+  .mobile-nav{
+    display:flex;
+    position:fixed;
+    bottom:0;left:0;right:0;
+    height:65px;
+    background:#fff;
+    border-top:1px solid var(--border);
+    z-index:30;
+  }
+  .mobile-nav button{
+    flex:1;
+    background:#fff;
+    color:#64748b;
+    font-size:11px;
+  }
+  .mobile-nav button.active{color:var(--primary)}
+  .balance{font-size:28px}
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN / REGISTER -->
+<div id="guest" class="guest">
+  <div class="guest-card">
+    <div class="guest-logo">✉</div>
+    <h1>STOR Portal</h1>
+    <p>
+      Portal pengelolaan setoran alamat email dengan dashboard member
+      dan administrasi yang terintegrasi.
+    </p>
+
+    <div style="margin-top:25px">
+      <button class="btn btn-primary" onclick="openAuth('login')">
+        Login
+      </button>
+      <button class="btn btn-light" onclick="openAuth('register')">
+        Daftar
+      </button>
+    </div>
+
+    <div class="card" style="margin-top:25px;text-align:left">
+      <b>Rules</b>
+      <p id="guestRules" class="muted">Memuat...</p>
+    </div>
+  </div>
+</div>
+
+<!-- APPLICATION -->
+<div id="app" class="hidden">
+
+<div class="layout">
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">✉</div>
+    STOR Portal
+  </div>
+
+  <div class="nav" id="memberNav">
+    <button class="active" onclick="showPage('dashboard',this)">🏠 Dashboard</button>
+    <button onclick="showPage('stor',this)">📨 STOR Email</button>
+    <button onclick="showPage('history',this)">📋 Riwayat</button>
+    <button onclick="showPage('withdraw',this)">💸 Penarikan</button>
+    <button onclick="showPage('profile',this)">👤 Profil</button>
+    <button onclick="showPage('rules',this)">📖 Rules</button>
+  </div>
+
+  <div class="nav hidden" id="adminNav">
+    <button class="active" onclick="showPage('adminDashboard',this)">📊 Dashboard</button>
+    <button onclick="showPage('adminStor',this)">📥 STOR Masuk</button>
+    <button onclick="showPage('adminWithdraw',this)">💸 Penarikan</button>
+    <button onclick="showPage('adminSettings',this)">⚙️ Pengaturan</button>
+  </div>
+
+  <button class="nav logout" onclick="logout()">↪ Keluar</button>
+</aside>
+
+<main class="main">
+
+<header class="topbar">
+  <div class="top-title" id="pageTitle">Dashboard</div>
+  <div class="user-pill">
+    <div class="avatar" id="avatar">M</div>
+    <span id="who">Member</span>
+  </div>
+</header>
+
+<div class="content">
+
+<!-- MEMBER DASHBOARD -->
+<section id="page-dashboard" class="page">
+
+<div class="hero">
+  <small>Selamat datang kembali</small>
+  <h1 id="dashEmail">Member</h1>
+  <p>Kelola STOR dan saldo kamu dari satu dashboard.</p>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="stat-icon">💰</div>
+    <div class="stat-label">Saldo</div>
+    <div class="stat-value" id="dashBalance">Rp0</div>
+  </div>
+
+  <div class="card">
+    <div class="stat-icon">📨</div>
+    <div class="stat-label">Total STOR</div>
+    <div class="stat-value" id="statTotal">0</div>
+  </div>
+
+  <div class="card">
+    <div class="stat-icon">⏳</div>
+    <div class="stat-label">Pending</div>
+    <div class="stat-value" id="statPending">0</div>
+  </div>
+
+  <div class="card">
+    <div class="stat-icon">✓</div>
+    <div class="stat-label">Diterima</div>
+    <div class="stat-value" id="statAccepted">0</div>
+  </div>
+</div>
+
+<div class="section two">
+
+<div class="card">
+  <div class="section-title">
+    <h2>STOR Terbaru</h2>
+    <button class="btn btn-light" onclick="showPage('history')">Lihat semua</button>
+  </div>
+  <div id="recentMember"></div>
+</div>
+
+<div class="card">
+  <h2>Saldo</h2>
+  <div class="balance" id="balanceLarge">Rp0</div>
+  <button class="btn btn-primary" onclick="showPage('withdraw')">
+    Tarik Saldo
+  </button>
+</div>
+
+</div>
+</section>
+
+<!-- STOR -->
+<section id="page-stor" class="page hidden">
+<div class="section-title">
+  <h2>STOR Email</h2>
+</div>
+
+<div class="card">
+  <p class="muted">
+    Masukkan alamat email yang sah. Jangan masukkan password, OTP,
+    recovery code, cookie, atau kredensial login.
+  </p>
+
+  <label>Alamat Email</label>
+  <textarea id="emails" placeholder="contoh@gmail.com&#10;contoh2@gmail.com"></textarea>
+
+  <label>Catatan</label>
+  <input id="note" placeholder="Catatan opsional">
+
+  <button class="btn btn-primary" onclick="stor()">
+    Kirim STOR
+  </button>
+</div>
+</section>
+
+<!-- HISTORY -->
+<section id="page-history" class="page hidden">
+<div class="card">
+<div class="section-title">
+  <h2>Riwayat STOR</h2>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Email</th>
+<th>Status</th>
+<th>Harga</th>
+<th>Tanggal</th>
+</tr>
+</thead>
+<tbody id="historyTable"></tbody>
+</table>
+</div>
+</div>
+</section>
+
+<!-- WITHDRAW -->
+<section id="page-withdraw" class="page hidden">
+<div class="two">
+
+<div class="card">
+<h2>Penarikan Saldo</h2>
+
+<label>Metode Pembayaran</label>
+<select id="method">
+<option value="">Pilih metode</option>
+<option>DANA</option>
+<option>GoPay</option>
+<option>OVO</option>
+<option>Bank</option>
+</select>
+
+<label>Nomor Rekening / Tujuan</label>
+<input id="target" placeholder="Nomor tujuan">
+
+<label>Jumlah Penarikan</label>
+<input id="amount" type="number" placeholder="Rp">
+
+<button class="btn btn-primary" onclick="withdraw()">
+Ajukan Penarikan
+</button>
+</div>
+
+<div class="card">
+<h2>Riwayat Penarikan</h2>
+<div id="withdrawHistory"></div>
+</div>
+
+</div>
+</section>
+
+<!-- PROFILE -->
+<section id="page-profile" class="page hidden">
+<div class="card">
+<h2>Profil</h2>
+
+<label>Email</label>
+<input id="profileEmail" disabled>
+
+<label>Metode Pembayaran</label>
+<select id="profileMethod">
+<option value="">Pilih metode</option>
+<option>DANA</option>
+<option>GoPay</option>
+<option>OVO</option>
+<option>Bank</option>
+</select>
+
+<label>Nomor Tujuan</label>
+<input id="profileTarget">
+
+<button class="btn btn-primary" onclick="saveProfile()">
+Simpan Profil
+</button>
+</div>
+</section>
+
+<!-- RULES -->
+<section id="page-rules" class="page hidden">
+<div class="card">
+<h2>Rules STOR</h2>
+<p id="rulesText" style="line-height:1.8"></p>
+</div>
+</section>
+
+<!-- ADMIN DASHBOARD -->
+<section id="page-adminDashboard" class="page hidden">
+
+<div class="hero">
+<small>Administrator</small>
+<h1>Admin Dashboard</h1>
+<p>Kelola STOR, member, dan permintaan penarikan.</p>
+</div>
+
+<div class="grid">
+<div class="card">
+<div class="stat-icon">📨</div>
+<div class="stat-label">Total STOR</div>
+<div class="stat-value" id="adminTotal">0</div>
+</div>
+
+<div class="card">
+<div class="stat-icon">⏳</div>
+<div class="stat-label">Pending</div>
+<div class="stat-value" id="adminPending">0</div>
+</div>
+
+<div class="card">
+<div class="stat-icon">✓</div>
+<div class="stat-label">Diterima</div>
+<div class="stat-value" id="adminAccepted">0</div>
+</div>
+
+<div class="card">
+<div class="stat-icon">💸</div>
+<div class="stat-label">Penarikan Pending</div>
+<div class="stat-value" id="adminWithdrawPending">0</div>
+</div>
+</div>
+
+</section>
+
+<!-- ADMIN STOR -->
+<section id="page-adminStor" class="page hidden">
+<div class="card">
+<h2>STOR Masuk</h2>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Email</th>
+<th>Member</th>
+<th>Harga</th>
+<th>Status</th>
+<th>Aksi</th>
+</tr>
+</thead>
+<tbody id="incomingTable"></tbody>
+</table>
+</div>
+</div>
+</section>
+
+<!-- ADMIN WITHDRAW -->
+<section id="page-adminWithdraw" class="page hidden">
+<div class="card">
+<h2>Permintaan Penarikan</h2>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Member</th>
+<th>Jumlah</th>
+<th>Metode</th>
+<th>Tujuan</th>
+<th>Status</th>
+<th>Aksi</th>
+</tr>
+</thead>
+<tbody id="adminWithdrawTable"></tbody>
+</table>
+</div>
+</div>
+</section>
+
+<!-- ADMIN SETTINGS -->
+<section id="page-adminSettings" class="page hidden">
+<div class="two">
+
+<div class="card">
+<h2>Pengaturan STOR</h2>
+
+<label>Harga STOR</label>
+<input id="price" type="number">
+
+<label>Minimal Penarikan</label>
+<input id="min" type="number">
+
+<label>Status STOR</label>
+<select id="open">
+<option value="1">Dibuka</option>
+<option value="0">Ditutup</option>
+</select>
+
+<label>Rules</label>
+<textarea id="arules"></textarea>
+
+<button class="btn btn-primary" onclick="saveSettings()">
+Simpan Pengaturan
+</button>
+</div>
+
+<div class="card">
+<h2>Password Admin</h2>
+
+<label>Password Baru</label>
+<input id="newPassword" type="password">
+
+<button class="btn btn-primary" onclick="changePassword()">
+Ganti Password
+</button>
+</div>
+
+</div>
+</section>
+
+</div>
+</main>
+</div>
+
+<div class="mobile-nav" id="mobileNav">
+<button class="active" onclick="showPage('dashboard',this)">🏠<br>Home</button>
+<button onclick="showPage('stor',this)">📨<br>STOR</button>
+<button onclick="showPage('withdraw',this)">💸<br>Tarik</button>
+<button onclick="showPage('profile',this)">👤<br>Profil</button>
+</div>
+
+</div>
+
+<!-- AUTH MODAL -->
+<div id="authModal" class="modal-bg hidden">
+<div class="modal">
+<h2 id="authTitle">Login</h2>
+
+<label>Email</label>
+<input id="authEmail" type="email">
+
+<label>Password</label>
+<input id="authPassword" type="password">
+
+<p id="authError" style="color:#dc2626"></p>
+
+<button class="btn btn-primary" onclick="submitAuth()">Lanjut</button>
+<button class="btn btn-light" onclick="closeAuth()">Batal</button>
+</div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
 <script>
-let mode="login";const $=x=>document.getElementById(x);async function api(u,o={}){let r=await fetch(u,{headers:{"Content-Type":"application/json"},...o}),j=await r.json();if(!r.ok)throw Error(j.error||"Gagal");return j}
-function auth(x){mode=x;$("mt").textContent=x==="login"?"Login":"Daftar";$("modal").classList.remove("hidden")}function closeM(){$("modal").classList.add("hidden")}
-async function goAuth(){try{await api("/api/"+mode,{method:"POST",body:JSON.stringify({email:$("em").value,password:$("pw").value})});closeM();boot()}catch(e){$("err").textContent=e.message}}
-async function boot(){let r=await fetch("/api/me");if(!r.ok){$("guest").classList.remove("hidden");$("member").classList.add("hidden");$("admin").classList.add("hidden");return}let u=await r.json();$("guest").classList.add("hidden");$("who").textContent=u.role==="admin"?"Admin":"Member";if(u.role==="admin"){ $("admin").classList.remove("hidden");loadAdmin()}else{$("member").classList.remove("hidden");$("me").textContent=u.email;$("bal").textContent="Saldo Rp"+u.balance.toLocaleString("id-ID");$("method").value=u.payout_method||"";$("target").value=u.payout_target||"";loadMember()}}
-async function loadMember(){let a=await api("/api/submissions"),w=await api("/api/withdrawals");$("hist").innerHTML=a.map(x=>`<div class=item><b>${x.email}</b><span class="tag ${x.status}">${x.status}</span><div class=muted>${x.created_at}</div></div>`).join("")||"Kosong";$("wh").innerHTML=w.map(x=>`<div class=item>Rp${x.amount.toLocaleString("id-ID")} • ${x.status}</div>`).join("")}
-async function stor(){try{let x=await api("/api/submissions",{method:"POST",body:JSON.stringify({emails:$("emails").value,note:$("note").value})});alert(x.count+" email dikirim");loadMember()}catch(e){alert(e.message)}}
-async function pay(id){
+let authMode="login";
+let currentUser=null;
+let memberSubmissions=[];
+let memberWithdrawals=[];
+let adminSubmissions=[];
+let adminWithdrawals=[];
+
+const $=id=>document.getElementById(id);
+
+async function api(url,options={}){
+  const response=await fetch(url,{
+    credentials:"same-origin",
+    headers:{
+      "Content-Type":"application/json",
+      ...(options.headers||{})
+    },
+    ...options
+  });
+
+  let data={};
+  try{data=await response.json()}catch(e){}
+
+  if(!response.ok){
+    throw new Error(data.error||"Permintaan gagal");
+  }
+
+  return data;
+}
+
+function toast(message){
+  $("toast").textContent=message;
+  $("toast").classList.remove("hidden");
+
+  setTimeout(()=>{
+    $("toast").classList.add("hidden");
+  },3000);
+}
+
+function openAuth(mode){
+  authMode=mode;
+  $("authTitle").textContent=mode==="login"?"Login":"Daftar";
+  $("authError").textContent="";
+  $("authEmail").value="";
+  $("authPassword").value="";
+  $("authModal").classList.remove("hidden");
+}
+
+function closeAuth(){
+  $("authModal").classList.add("hidden");
+}
+
+async function submitAuth(){
   try{
-    await api("/api/withdrawals/"+id+"/pay",{method:"POST"});
-    alert("Penarikan berhasil di-ACC/dibayar");
-    loadAdmin();
-  }catch(e){
-    alert("Gagal ACC penarikan: "+e.message);
+    await api("/api/"+authMode,{
+      method:"POST",
+      body:JSON.stringify({
+        email:$("authEmail").value,
+        password:$("authPassword").value
+      })
+    });
+
+    closeAuth();
+    await boot();
+    toast("Berhasil");
+  }catch(error){
+    $("authError").textContent=error.message;
   }
 }
-async function loadAdmin(){let s=await api("/api/settings"),a=await api("/api/submissions"),w=await api("/api/withdrawals");$("price").value=s.price;$("min").value=s.min;$("open").value=s.open?"1":"0";$("arules").value=s.rules;$("incoming").innerHTML=a.filter(x=>x.status==="pending").map(x=>`<div class=item><b>${x.email}</b><div>${x.member}</div><button class=green onclick="act(${x.id},'accept')">Terima</button><button class=red onclick="act(${x.id},'reject')">Tolak</button></div>`).join("")||"Tidak ada";$("aw").innerHTML=w.map(x=>`<div class=item>${x.member} • Rp${x.amount.toLocaleString("id-ID")} • ${x.status} ${x.status==="pending"?`<button class=green onclick="pay(${x.id})">Bayar</button>`:""}</div>`).join("")}
-async function act(id,a){await api("/api/submissions/"+id+"/"+a,{method:"POST"});loadAdmin()}async function pay(id){await api("/api/withdrawals/"+id+"/pay",{method:"POST"});loadAdmin()}async function settings(){await api("/api/settings",{method:"POST",body:JSON.stringify({price:+$("price").value,min:+$("min").value,open:$("open").value==="1",rules:$("arules").value})});alert("Disimpan")}async function pass(){await api("/api/admin/password",{method:"POST",body:JSON.stringify({password:$("np").value})});alert("Password diganti")}
-async function logout(){await api("/api/logout",{method:"POST"});boot()}api("/api/rules").then(x=>$("rules").textContent=x.rules);boot();
-</script></body></html>
+
+async function boot(){
+  try{
+    currentUser=await api("/api/me");
+
+    $("guest").classList.add("hidden");
+    $("app").classList.remove("hidden");
+
+    $("who").textContent=currentUser.role==="admin"?"Admin":"Member";
+    $("avatar").textContent=(currentUser.email||"M").charAt(0).toUpperCase();
+
+    if(currentUser.role==="admin"){
+      $("memberNav").classList.add("hidden");
+      $("adminNav").classList.remove("hidden");
+      $("mobileNav").classList.add("hidden");
+      await loadAdmin();
+      showPage("adminDashboard");
+    }else{
+      $("adminNav").classList.add("hidden");
+      $("memberNav").classList.remove("hidden");
+      $("mobileNav").classList.remove("hidden");
+
+      $("profileEmail").value=currentUser.email;
+      $("profileMethod").value=currentUser.payout_method||"";
+      $("profileTarget").value=currentUser.payout_target||"";
+
+      await loadMember();
+      showPage("dashboard");
+    }
+
+  }catch(error){
+    $("guest").classList.remove("hidden");
+    $("app").classList.add("hidden");
+  }
+}
+
+function showPage(page,button){
+  document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));
+
+  const target=$("page-"+page);
+  if(target)target.classList.remove("hidden");
+
+  const titles={
+    dashboard:"Dashboard",
+    stor:"STOR Email",
+    history:"Riwayat STOR",
+    withdraw:"Penarikan",
+    profile:"Profil",
+    rules:"Rules",
+    adminDashboard:"Admin Dashboard",
+    adminStor:"STOR Masuk",
+    adminWithdraw:"Penarikan",
+    adminSettings:"Pengaturan"
+  };
+
+  $("pageTitle").textContent=titles[page]||"Dashboard";
+
+  document.querySelectorAll(".nav button,.mobile-nav button")
+    .forEach(x=>x.classList.remove("active"));
+
+  if(button)button.classList.add("active");
+}
+
+async function loadMember(){
+  memberSubmissions=await api("/api/submissions");
+  memberWithdrawals=await api("/api/withdrawals");
+
+  const accepted=memberSubmissions.filter(x=>x.status==="accepted").length;
+  const pending=memberSubmissions.filter(x=>x.status==="pending").length;
+
+  $("dashEmail").textContent=currentUser.email;
+
+  const balance=currentUser.balance||0;
+  const formatted="Rp"+balance.toLocaleString("id-ID");
+
+  $("dashBalance").textContent=formatted;
+  $("balanceLarge").textContent=formatted;
+
+  $("statTotal").textContent=memberSubmissions.length;
+  $("statPending").textContent=pending;
+  $("statAccepted").textContent=accepted;
+
+  $("historyTable").innerHTML=
+    memberSubmissions.map(x=>`
+      <tr>
+        <td>${escapeHtml(x.email)}</td>
+        <td>${badge(x.status)}</td>
+        <td>Rp${Number(x.price||0).toLocaleString("id-ID")}</td>
+        <td>${escapeHtml(x.created_at||"-")}</td>
+      </tr>
+    `).join("")||
+    `<tr><td colspan="4"><div class="empty">Belum ada STOR</div></td></tr>`;
+
+  $("recentMember").innerHTML=
+    memberSubmissions.slice(0,5).map(x=>`
+      <div class="item" style="padding:13px 0;border-bottom:1px solid var(--border)">
+        <b>${escapeHtml(x.email)}</b>
+        <span style="float:right">${badge(x.status)}</span>
+      </div>
+    `).join("")||
+    `<div class="empty">Belum ada aktivitas</div>`;
+
+  $("withdrawHistory").innerHTML=
+    memberWithdrawals.map(x=>`
+      <div class="item" style="padding:13px 0;border-bottom:1px solid var(--border)">
+        <b>Rp${Number(x.amount).toLocaleString("id-ID")}</b>
+        <span style="float:right">${badge(x.status)}</span>
+        <div class="muted">${escapeHtml(x.method||"-")} • ${escapeHtml(x.target|
